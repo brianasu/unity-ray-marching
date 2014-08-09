@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: ef946d2c5f4aaf6439d698baf879d4ee
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences:
+  - sunLight: {instanceID: 0}
+  - noiseShader: {fileID: 4800000, guid: 87b18e9567191455597047f93df9c79d, type: 3}
+  - compositeShader: {fileID: 4800000, guid: 9be4ceea0147eb24fae365196d42254b, type: 3}
+  - renderFrontDepthShader: {fileID: 4800000, guid: 421066edce8e7054ebf3ef0b41a1d22b,
+      type: 3}
+  - renderBackDepthShader: {fileID: 4800000, guid: 331e2ba5f7840c64d82d38ddea942a3c,
+      type: 3}
+  - rayMarchShader: {fileID: 4800000, guid: 4f97ff7cb0e264f46be0965e35eccc3f, type: 3}
+  - pixelBlitMaterial: {fileID: 2100000, guid: e7e7ec71d8cca4167bb35077b47cb1f1, type: 2}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
