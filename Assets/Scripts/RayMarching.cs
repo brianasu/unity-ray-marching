@@ -88,9 +88,12 @@ public class RayMarching : MonoBehaviour
 		Graphics.Blit(_noiseBuffer, _noiseBuffer, noiseMaterial, 0);
 		for(int i = 0; i < blurPasses; i++)
 		{
-			Graphics.Blit(_noiseBuffer, _noiseBuffer, noiseMaterial, 2);
-			Graphics.Blit(_noiseBuffer, _noiseBuffer, noiseMaterial, 3);
-			Graphics.Blit(_noiseBuffer, _noiseBuffer, noiseMaterial, 4);
+			var temp = RenderTexture.GetTemporary(volumeTexWidth, volumeTexWidth, 0, RenderTextureFormat.ARGB32);
+			Graphics.Blit(_noiseBuffer, temp, noiseMaterial, 2);
+			Graphics.Blit(temp, _noiseBuffer, noiseMaterial, 3);
+			Graphics.Blit(_noiseBuffer, temp, noiseMaterial, 4);
+			Graphics.Blit(temp, _noiseBuffer);
+			RenderTexture.ReleaseTemporary(temp);
 		}
 
 		if(renderLight)

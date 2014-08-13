@@ -8,7 +8,6 @@ Shader "Hidden/Ray Marching/Render Noise" {
 	CGINCLUDE
 	#include "UnityCG.cginc"
 	#include "noise.cginc"
-	#include "cloudnoise.cginc"
 	#pragma target 3.0
 	//#pragma profileoption MaxLocalParams=1024 
 	//#pragma profileoption NumInstructionSlots=4096
@@ -19,6 +18,8 @@ Shader "Hidden/Ray Marching/Render Noise" {
 		float4 pos : POSITION;
 		float2 uv[2] : TEXCOORD0;
 	};
+	
+	float _Dimensions;
 	
 	float2 toTexPos(float3 pos)
 	{
@@ -157,12 +158,12 @@ Shader "Hidden/Ray Marching/Render Noise" {
 		return o;
 	}
 	
-	half4 fragSpatialBlur (v2fBlur IN) : COLOR
+	float4 fragSpatialBlur (v2fBlur IN) : COLOR
 	{
-		half4 contribution = tex2D(_MainTex, IN.uv[0]);
+		float4 contribution = tex2D(_MainTex, IN.uv[0]);
 		contribution += tex2D(_MainTex, IN.uv[1]);
 		contribution += tex2D(_MainTex, IN.uv[2]);
-		return contribution / 2.7;
+		return contribution / 3;
 	}			
 	
 	ENDCG

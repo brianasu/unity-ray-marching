@@ -67,7 +67,7 @@ inline float snoise(float2 v)
 
 	// Gradients: 41 points uniformly over a line, mapped onto a diamond.
 	// The ring size 17*17 = 289 is close to a multiple of 41 (41*7 = 287)
-	float3 x = 2.0 * fract(p * C.www) - 1.0;
+	float3 x = 2.0 * frac(p * C.www) - 1.0;
 	float3 h = abs(x) - 0.5;
 	float3 ox = floor(x + 0.5);
 	float3 a0 = x - ox;
@@ -132,7 +132,7 @@ inline float snoise(float3 v)
 
 	float4 s0 = floor(b0) * 2.0 + 1.0;
 	float4 s1 = floor(b1) * 2.0 + 1.0;
-	float4 sh = -step(h, float4(0.0));
+	float4 sh = -step(h, float4(0, 0, 0, 0));
 
 	float4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
 	float4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
