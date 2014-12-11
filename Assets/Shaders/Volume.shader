@@ -1,16 +1,16 @@
-Shader "Ray Marching/Volume" 
+Shader "Ray Marching/Volume"
 {
-	SubShader 
+	SubShader
 	{
 		Tags {"RenderType" = "Volume"}
 
-		ZWrite Off		
-		
-		Pass 
+		ZWrite Off
+
+		Pass
 		{
 			ColorMask 0
-		}		
+		}
 	}
-	
-	FallBack Off		
+
+	FallBack Off
 }

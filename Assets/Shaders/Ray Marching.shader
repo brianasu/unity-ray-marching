@@ -7,17 +7,16 @@ Shader "Hidden/Ray Marching/Ray Marching"
 	#pragma target 3.0
 	#pragma profileoption MaxLocalParams=1024 
 	#pragma profileoption NumInstructionSlots=4096
-	#pragma profileoption NumMathInstructionSlots=4096	
+	#pragma profileoption NumMathInstructionSlots=4096
 	
 	struct v2f {
 		float4 pos : POSITION;
 		float2 uv[2] : TEXCOORD0;
 	};
 	
-	sampler2D _MainTex;
-	float4 _MainTex_TexelSize;
-	
-	sampler2D _NoiseTex;
+	sampler3D _VolumeTex;
+	float4 _VolumeTex_TexelSize;
+
 	sampler2D _FrontTex;
 	sampler2D _BackTex;
 	
@@ -25,6 +24,10 @@ Shader "Hidden/Ray Marching/Ray Marching"
 	float4 _LightPos;
 	
 	float _Dimensions;
+	
+	float _Opacity;
+	float4 _ClipDims;	
+	float4 _ClipPlane;
 	
 	v2f vert( appdata_img v ) 
 	{
@@ -40,24 +43,9 @@ Shader "Hidden/Ray Marching/Ray Marching"
 		return o;
 	}
 	
-	#define TOTAL_STEPS 64.0
-	#define STEP_CNT 64
-	#define STEP_SIZE 1 / 64.0
-	#define ROW_STEP_SIZE 1 / 8.0
-	#define DIMENSIONS 8.0
-	
-	float2 toTexPos(float3 pos)
-	{
-		float2 tex =  float2(
-			pos.x / DIMENSIONS + floor(frac(pos.z * DIMENSIONS) * DIMENSIONS) / DIMENSIONS,
-			1.0 - (pos.y / DIMENSIONS + floor(pos.z * DIMENSIONS) / DIMENSIONS));
-			
-		return tex;
-			
-//		return float2(
-//			pos.x / _Dimensions + (floor(pos.z * _Dimensions) / _Dimensions),
-//			pos.y);		
-	}
+	#define TOTAL_STEPS 128.0
+	#define STEP_CNT 128
+	#define STEP_SIZE 1 / 128.0
 	
 	half4 raymarch(v2f i, float offset) 
 	{
@@ -68,21 +56,26 @@ Shader "Hidden/Ray Marching/Ray Marching"
 		float4 dst = 0;
 		float3 stepDist = dir * STEP_SIZE;
 		
+			
 		for(int k = 0; k < STEP_CNT; k++)
 		{
-			float4 src = tex2D(_MainTex, toTexPos(pos));
-	        
-	        //Front to back blending
-		    //dst.rgb = dst.rgb + (1 - dst.a) * src.a * src.rgb;
-		   	//dst.a   = dst.a   + (1 - dst.a) * src.a;     
-	        
+			float4 src = tex3D(_VolumeTex, pos);
+			
+			// clipping
+			float border = step(1 - _ClipDims.x, pos.x);
+			border *= step(pos.y, _ClipDims.y);
+			border *= step(pos.z, _ClipDims.z);
+			border *= step(0, dot(_ClipPlane, float4(pos - 0.5, 1)) + _ClipPlane.w);
+
+	        // Standard blending	        
+	        src.a *= saturate(_Opacity * border);
 	        src.rgb *= src.a;
-	        
-	        dst = (1.0f - dst.a) * src + dst; 
+	        dst = (1.0f - dst.a) * src + dst;
+
 			pos += stepDist;
 		}
 
-    	return dst;
+    	return dst + dst;
 	}
 
 	ENDCG

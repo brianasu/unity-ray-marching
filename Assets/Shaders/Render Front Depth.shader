@@ -8,6 +8,8 @@ Shader "Hidden/Ray Marching/Render Front Depth" {
 			float4 pos : POSITION;
 			float3 localPos : TEXCOORD0;
 		};
+		
+		float4 _VolumeScale;
 
 		v2f vert(appdata_base v) 
 		{

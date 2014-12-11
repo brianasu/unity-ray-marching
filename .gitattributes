@@ -1,0 +1,4 @@
+*.mat diff
+*.prefab diff
+*.unity diff
+*.asset diff 

@@ -6,140 +6,44 @@ using System.Collections.Generic;
 public class RayMarching : MonoBehaviour
 {
 	[SerializeField]
-	private bool
-		updateNoise = false;
+	[Header("Render in a lower resolution to increase performance.")]
+	private int downscale = 2;
 	[SerializeField]
-	private bool
-		renderLight = false;
+	private LayerMask volumeLayer;
+
 	[SerializeField]
-	private float
-		noiseStrength = 1f;
+	private Shader compositeShader;
 	[SerializeField]
-	private int
-		blurPasses = 0;
+	private Shader renderFrontDepthShader;
 	[SerializeField]
-	private int
-		downscale = 2;
+	private Shader renderBackDepthShader;
 	[SerializeField]
-	private LayerMask
-		volumeLayer;
+	private Shader rayMarchShader;
+
+	[SerializeField][Header("Remove all the darker colors")]
+	private bool increaseVisiblity = false;
+
+
+	[Header("Drag all the textures in here")]
 	[SerializeField]
-	private Light
-		sunLight;
+	private Texture2D[] slices;
+	[SerializeField][Range(0, 2)]
+	private float opacity = 1;
+	[Header("Volume texture size. These must be a power of 2")]
 	[SerializeField]
-	private Shader
-		noiseShader;
+	private int volumeWidth = 256;
 	[SerializeField]
-	private Shader
-		compositeShader;
+	private int volumeHeight = 256;
 	[SerializeField]
-	private Shader
-		renderFrontDepthShader;
+	private int volumeDepth = 256;
+	[Header("Clipping planes percentage")]
 	[SerializeField]
-	private Shader
-		renderBackDepthShader;
-	[SerializeField]
-	private Shader
-		rayMarchShader;
-	[SerializeField]
-	private Vector4
-		scale = Vector4.one;
-	[SerializeField]
-	private Vector4
-		octaves = Vector4.one;
-	[SerializeField]
-	private Vector4
-		clipDimensions;
-	[SerializeField]
-	private int
-		volumeTexWidth = 4096;
-	[SerializeField]
-	public Material
-		pixelBlitMaterial;
-	private int _slices = 8;
+	private Vector4 clipDimensions = new Vector4(100, 100, 100, 0);
+
 	private Material _rayMarchMaterial;
 	private Material _compositeMaterial;
 	private Camera _ppCamera;
-	private RenderTexture _noiseBuffer;
-	
-	private void GenerateGPUNoiseBuffer()
-	{
-		var noiseMaterial = new Material(noiseShader);
-		noiseMaterial.SetFloat("_Slices", _slices);
-		noiseMaterial.SetFloat("_Strength", noiseStrength);
-		noiseMaterial.SetVector("_Scale", scale);
-		noiseMaterial.SetVector("_Octaves", octaves);
-		noiseMaterial.SetVector("_ClipDims", clipDimensions);
-
-		if(sunLight != null)
-		{
-			noiseMaterial.SetVector("_LightDir", sunLight.transform.forward);
-		}
-
-		if(_noiseBuffer == null)
-		{
-			_noiseBuffer = RenderTexture.GetTemporary(volumeTexWidth, volumeTexWidth, 0, RenderTextureFormat.ARGB32);
-			_noiseBuffer.filterMode = FilterMode.Trilinear;
-			_noiseBuffer.generateMips = false;
-			_noiseBuffer.hideFlags = HideFlags.HideAndDontSave;
-			_noiseBuffer.wrapMode = TextureWrapMode.Repeat;
-		}
-
-		Graphics.Blit(_noiseBuffer, _noiseBuffer, noiseMaterial, 0);
-		for(int i = 0; i < blurPasses; i++)
-		{
-			var temp = RenderTexture.GetTemporary(volumeTexWidth, volumeTexWidth, 0, RenderTextureFormat.ARGB32);
-			Graphics.Blit(_noiseBuffer, temp, noiseMaterial, 2);
-			Graphics.Blit(temp, _noiseBuffer, noiseMaterial, 3);
-			Graphics.Blit(_noiseBuffer, temp, noiseMaterial, 4);
-			Graphics.Blit(temp, _noiseBuffer);
-			RenderTexture.ReleaseTemporary(temp);
-		}
-
-		if(renderLight)
-		{
-			Graphics.Blit(_noiseBuffer, _noiseBuffer, noiseMaterial, 1);
-		}
-		
-		Destroy(noiseMaterial);
-	}
-
-	private void BlitParticles(Vector3 part)
-	{
-		GL.Clear(false, true, Color.clear);
-		var texDimensions = volumeTexWidth / _slices;
-
-		GL.PushMatrix();
-		pixelBlitMaterial.SetPass(0);
-		GL.LoadPixelMatrix(0, volumeTexWidth, 0, volumeTexWidth);
-		GL.Begin(GL.QUADS);
-
-		var widthOff = 1f;
-		var heightOff = 1f;
- 
-		var pos = part + Vector3.one * 0.5f;
-		var x = pos.x * texDimensions + Mathf.Floor((pos.z * _slices % 1) * _slices) * texDimensions;
-		var y = volumeTexWidth - ((pos.y * texDimensions) + (Mathf.Floor(pos.z * _slices)) * texDimensions);
-
-		GL.TexCoord2(0, 0);
-		GL.Vertex3(x, y, 0);
-		GL.Color(Color.red);
-
-		GL.TexCoord2(0, 1);
-		GL.Vertex3(x, y + heightOff, 0);
-		GL.Color(Color.red);
-
-		GL.TexCoord2(1, 1);
-		GL.Vertex3(x + widthOff, y + heightOff, 0);
-		GL.Color(Color.red);
-
-		GL.TexCoord2(1, 0);
-		GL.Vertex3(x + widthOff, y, 0);
-		GL.Color(Color.red);
-
-		GL.End();
-		GL.PopMatrix();
-	}
+	private Texture3D _volumeBuffer;
 
 	private void Awake()
 	{
@@ -149,19 +53,26 @@ public class RayMarching : MonoBehaviour
 
 	private void Start()
 	{
-		GenerateGPUNoiseBuffer();
+		GenerateVolumeTexture();
 	}
 
-	private void Update()
+	private void OnDestroy()
 	{
-		if(updateNoise)
+		if(_volumeBuffer != null)
 		{
-			GenerateGPUNoiseBuffer();
+			Destroy(_volumeBuffer);
 		}
 	}
 
+	[SerializeField]
+	private Transform clipPlane;
+	[SerializeField]
+	private Transform cubeTarget;
+	
 	private void OnRenderImage(RenderTexture source, RenderTexture destination)
 	{
+		_rayMarchMaterial.SetTexture("_VolumeTex", _volumeBuffer);
+
 		var width = source.width / downscale;
 		var height = source.height / downscale;
 
@@ -180,11 +91,11 @@ public class RayMarching : MonoBehaviour
 		var frontDepth = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGBFloat);
 		var backDepth = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGBFloat);
 
-		_rayMarchMaterial.SetFloat("_Dimensions", _slices);
-		_rayMarchMaterial.SetVector("_LightDir", sunLight.transform.forward);
-		_rayMarchMaterial.SetVector("_LightPos", sunLight.transform.position);
-
 		var volumeTarget = RenderTexture.GetTemporary(width, height, 0);
+
+		// need to set this vector because unity bakes object that are non uniformily scaled
+		//TODO:FIX
+		//Shader.SetGlobalVector("_VolumeScale", cubeTarget.transform.localScale);
 
 		// Render depths
 		_ppCamera.targetTexture = frontDepth;
@@ -195,7 +106,22 @@ public class RayMarching : MonoBehaviour
 		// Render volume
 		_rayMarchMaterial.SetTexture("_FrontTex", frontDepth);
 		_rayMarchMaterial.SetTexture("_BackTex", backDepth);
-		_rayMarchMaterial.SetTexture("_MainTex", _noiseBuffer);
+
+		if(cubeTarget != null && clipPlane != null && clipPlane.gameObject.activeSelf)
+		{
+			var p = new Plane(
+				cubeTarget.InverseTransformDirection(clipPlane.transform.up), 
+				cubeTarget.InverseTransformPoint(clipPlane.position));
+			_rayMarchMaterial.SetVector("_ClipPlane", new Vector4(p.normal.x, p.normal.y, p.normal.z, p.distance));
+		}
+		else
+		{
+			_rayMarchMaterial.SetVector("_ClipPlane", Vector4.zero);
+		}
+
+		_rayMarchMaterial.SetFloat("_Opacity", opacity); // Blending strength 
+		_rayMarchMaterial.SetVector("_ClipDims", clipDimensions / 100f); // Clip box
+
 
 		Graphics.Blit(null, volumeTarget, _rayMarchMaterial);
 
@@ -206,5 +132,48 @@ public class RayMarching : MonoBehaviour
 		RenderTexture.ReleaseTemporary(volumeTarget);
 		RenderTexture.ReleaseTemporary(frontDepth);
 		RenderTexture.ReleaseTemporary(backDepth);
+	}
+
+	private void GenerateVolumeTexture()
+	{
+		// sort
+		System.Array.Sort(slices, (x, y) => x.name.CompareTo(y.name));
+		
+		// use a bunch of memory!
+		_volumeBuffer = new Texture3D(volumeWidth, volumeHeight, volumeDepth, TextureFormat.ARGB32, false);
+		
+		var w = _volumeBuffer.width;
+		var h = _volumeBuffer.height;
+		var d = _volumeBuffer.depth;
+		
+		// skip some slices if we can't fit it all in
+		var countOffset = (slices.Length - 1) / (float)d;
+		
+		var volumeColors = new Color[w * h * d];
+		
+		var sliceCount = 0;
+		var sliceCountFloat = 0f;
+		for(int z = 0; z < d; z++)
+		{
+			sliceCountFloat += countOffset;
+			sliceCount = Mathf.FloorToInt(sliceCountFloat);
+			for(int x = 0; x < w; x++)
+			{
+				for(int y = 0; y < h; y++)
+				{
+					var idx = x + (y * w) + (z * (w * h));
+					volumeColors[idx] = slices[sliceCount].GetPixelBilinear(x / (float)w, y / (float)h); 
+					if(increaseVisiblity)
+					{
+						volumeColors[idx].a *= volumeColors[idx].r;
+					}
+				}
+			}
+		}
+		
+		_volumeBuffer.SetPixels(volumeColors);
+		_volumeBuffer.Apply();
+		
+		_rayMarchMaterial.SetTexture("_VolumeTex", _volumeBuffer);
 	}
 }
