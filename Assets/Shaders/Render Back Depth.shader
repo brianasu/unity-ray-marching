@@ -6,7 +6,7 @@ Shader "Hidden/Ray Marching/Render Back Depth" {
 
 		struct v2f {
 			float4 pos : POSITION;
-			float3 localPos : TEXCOORD0;
+			float depth : TEXCOORD0;
 		};
 		
 		float4 _VolumeScale;
@@ -15,13 +15,18 @@ Shader "Hidden/Ray Marching/Render Back Depth" {
 		{
 			v2f o;
 			o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
-			o.localPos = v.vertex.xyz + 0.5;
+			o.depth = -mul(UNITY_MATRIX_MV, v.vertex).z * _ProjectionParams.w;
 			return o;
 		}
 
 		half4 frag(v2f i) : COLOR 
 		{ 
-			return float4(i.localPos, 1);
+			if(i.depth > 0.999)
+			{
+				return 0;
+			}
+		
+			return float4(i.depth, 0, 0, 1);
 		}
 		
 	ENDCG

@@ -10,7 +10,7 @@ public class SliceMesh : MonoBehaviour
 	private void Start()
 	{
 		var planeObj = GameObject.CreatePrimitive(PrimitiveType.Plane);
-		planeObj.renderer.enabled = false;
+		planeObj.GetComponent<Renderer>().enabled = false;
 
 		_planeTrans = planeObj.transform;
 
@@ -31,7 +31,7 @@ public class SliceMesh : MonoBehaviour
 		for(int i = 0; i < meshes.Length; i++)
 		{
 			MeshSlicer.CutTriangleMeshOneSide(_outputMesh[i], meshes[i].mesh, cuttingPlane, meshes[i].transform, _planeTrans, false, true);
-			Graphics.DrawMesh(_outputMesh[i], meshes[i].transform.localToWorldMatrix, meshes[i].renderer.material, 0);
+			Graphics.DrawMesh(_outputMesh[i], meshes[i].transform.localToWorldMatrix, meshes[i].GetComponent<Renderer>().material, 0);
 		}
 	}
 }

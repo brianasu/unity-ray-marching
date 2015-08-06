@@ -63,7 +63,7 @@ public class MeshSlicer : MonoBehaviour
         clonedMesh.subMeshCount = sourceMesh.subMeshCount;
         clonedMesh.vertices = (Vector3[])sourceMesh.vertices.Clone();
         clonedMesh.uv = (Vector2[])sourceMesh.uv.Clone();
-        clonedMesh.uv1 = (Vector2[])sourceMesh.uv1.Clone();
+        clonedMesh.uv2 = (Vector2[])sourceMesh.uv2.Clone();
         clonedMesh.uv2 = (Vector2[])sourceMesh.uv2.Clone();
         clonedMesh.normals = (Vector3[])sourceMesh.normals.Clone();
         clonedMesh.tangents = new Vector4[clonedMesh.vertices.Length];
@@ -77,7 +77,7 @@ public class MeshSlicer : MonoBehaviour
     {
         Mesh sourceMesh = sourceGameObject.GetComponent<MeshFilter>().mesh;
 
-        Bounds bounds = sourceGameObject.renderer.bounds;
+        Bounds bounds = sourceGameObject.GetComponent<Renderer>().bounds;
         Vector3 minBounds = bounds.min;
         Vector3 maxBounds = bounds.max;
 

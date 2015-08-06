@@ -1,4 +1,4 @@
-Shader "Hidden/Ray Marching/Render Front Depth" {
+Shader "Hidden/Ray Marching/Render Front Position" {
 
 	CGINCLUDE
 		#pragma exclude_renderers xbox360
@@ -6,7 +6,7 @@ Shader "Hidden/Ray Marching/Render Front Depth" {
 
 		struct v2f {
 			float4 pos : POSITION;
-			float depth : TEXCOORD0;
+			float3 localPos : TEXCOORD0;
 		};
 		
 		float4 _VolumeScale;
@@ -15,18 +15,13 @@ Shader "Hidden/Ray Marching/Render Front Depth" {
 		{
 			v2f o;
 			o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
-			o.depth = -mul(UNITY_MATRIX_MV, v.vertex).z * _ProjectionParams.w;
+			o.localPos = v.vertex.xyz + 0.5;
 			return o;
 		}
 		
 		half4 frag(v2f i) : COLOR 
 		{  
-			if(i.depth > 0.999)
-			{
-				return 0;
-			}
-		
-			return float4(i.depth, 0, 0, 1);
+			return float4(i.localPos, 1);
 		}
 		
 	ENDCG
@@ -35,7 +30,6 @@ Shader "Hidden/Ray Marching/Render Front Depth" {
 	{ 	
 		Tags {"RenderType"="Volume"}
 		Fog { Mode off }
-		ZTest Always
 
 		Pass 
 		{
