@@ -32,8 +32,10 @@ public class RayMarching : MonoBehaviour
 	[SerializeField][Header("Remove all the darker colors")]
 	private bool increaseVisiblity = false;
 
+    [SerializeField]
+    private Texture2D _noiseTex;
 
-	[Header("Drag all the textures in here")]
+    [Header("Drag all the textures in here")]
 	[SerializeField]
 	private Texture2D[] slices;
 	[SerializeField][Range(0, 2)]
@@ -58,7 +60,9 @@ public class RayMarching : MonoBehaviour
 	{
 		_rayMarchMaterial = new Material(rayMarchShader);
 		_compositeMaterial = new Material(compositeShader);
-	}
+
+        gameObject.GetComponent<Camera>().depthTextureMode |= DepthTextureMode.DepthNormals;
+    }
 
 	private void Start()
 	{
@@ -90,26 +94,23 @@ public class RayMarching : MonoBehaviour
 			var go = new GameObject("PPCamera");
 			_ppCamera = go.AddComponent<Camera>();
 			_ppCamera.enabled = false;
-
-		}
+            _ppCamera.renderingPath = RenderingPath.VertexLit;
+            _ppCamera.useOcclusionCulling = false;
+        }
 
 		_ppCamera.CopyFrom(GetComponent<Camera>());
 		_ppCamera.clearFlags = CameraClearFlags.SolidColor;
+		
 		_ppCamera.backgroundColor = Color.white;
 		_ppCamera.cullingMask = volumeLayer;
-		_ppCamera.depthTextureMode = DepthTextureMode.Depth | DepthTextureMode.DepthNormals;
 
 		var frontPos = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGBFloat);
 		var backPos = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGBFloat);
-
-		var frontDepth = RenderTexture.GetTemporary(width, height, 1, RenderTextureFormat.ARGBFloat);
-		var backDepth = RenderTexture.GetTemporary(width, height, 1, RenderTextureFormat.ARGBFloat);
-
 		var volumeTarget = RenderTexture.GetTemporary(width, height, 0);
 
-//		RenderTexture.active = volumeTarget;
-//		GL.Clear(true, true, Color.white);
-//		RenderTexture.active = null;
+		RenderTexture.active = volumeTarget;
+		GL.Clear(false, true, Color.clear);
+		RenderTexture.active = null;
 
 		// need to set this vector because unity bakes object that are non uniformily scaled
 		//TODO:FIX
@@ -121,18 +122,11 @@ public class RayMarching : MonoBehaviour
 		_ppCamera.targetTexture = backPos;
 		_ppCamera.RenderWithShader(renderBackPosShader, "RenderType");
 
-		_ppCamera.targetTexture = frontDepth;
-		_ppCamera.RenderWithShader(renderFrontDepthShader, "RenderType");
-		_ppCamera.targetTexture = backDepth;
-		_ppCamera.RenderWithShader(renderBackDepthShader, "RenderType");
 
 		// Render volume
 		_rayMarchMaterial.SetTexture("_FrontTex", frontPos);
 		_rayMarchMaterial.SetTexture("_BackTex", backPos);
-
 		_rayMarchMaterial.SetFloat("_FadeAmount", _depthBlend);
-		_rayMarchMaterial.SetTexture("_FrontDepthTex", frontDepth);
-		_rayMarchMaterial.SetTexture("_BackDepthTex", backDepth);
 
 		if(cubeTarget != null && clipPlane != null && clipPlane.gameObject.activeSelf)
 		{
@@ -146,11 +140,12 @@ public class RayMarching : MonoBehaviour
 			_rayMarchMaterial.SetVector("_ClipPlane", Vector4.zero);
 		}
 
+        _rayMarchMaterial.SetTexture("_NoiseTex", _noiseTex);
 		_rayMarchMaterial.SetFloat("_Opacity", opacity); // Blending strength 
 		_rayMarchMaterial.SetVector("_ClipDims", clipDimensions / 100f); // Clip box
+        _rayMarchMaterial.SetMatrix("_ObjectToView", GetComponent<Camera>().worldToCameraMatrix * cubeTarget.localToWorldMatrix);
 
-
-		Graphics.Blit(null, volumeTarget, _rayMarchMaterial);
+        Graphics.Blit(null, volumeTarget, _rayMarchMaterial);
 
 		_ppCamera.Render ();
 
@@ -161,8 +156,6 @@ public class RayMarching : MonoBehaviour
 		RenderTexture.ReleaseTemporary(volumeTarget);
 		RenderTexture.ReleaseTemporary(frontPos);
 		RenderTexture.ReleaseTemporary(backPos);
-		RenderTexture.ReleaseTemporary(frontDepth);
-		RenderTexture.ReleaseTemporary(backDepth);
 	}
 
 	private void GenerateVolumeTexture()

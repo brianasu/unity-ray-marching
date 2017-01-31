@@ -19,9 +19,7 @@ Shader "Hidden/Ray Marching/Ray Marching"
 
 	sampler2D _FrontTex;
 	sampler2D _BackTex;
-	
-	sampler2D _FrontDepthTex;
-	sampler2D _BackDepthTex;
+	sampler2D _NoiseTex;	
 	sampler2D _CameraDepthNormalsTexture;
 	
 	float4 _LightDir;
@@ -52,27 +50,39 @@ Shader "Hidden/Ray Marching/Ray Marching"
 	#define TOTAL_STEPS 128.0
 	#define STEP_CNT 128
 	#define STEP_SIZE 1 / 128.0
+
+	float4x4 _ObjectToView;
+
 	
 	half4 raymarch(v2f i, float offset) 
 	{
 		float3 frontPos = tex2D(_FrontTex, i.uv[1]).xyz;		
 		float3 backPos = tex2D(_BackTex, i.uv[1]).xyz;				
 		float3 dir = backPos - frontPos;
+
+		clip(length(dir.xyz) > 0 ? 1 : -1);
+
 		float3 pos = frontPos;
+
+		// float3 noiseTex = tex2D(_NoiseTex, i.uv[1] * 20).rgb - 0.5;
+		// noiseTex *= 2;
+		// pos.x += noiseTex.r * 0.03;
+
 		float4 dst = 0;
 		float3 stepDist = dir * STEP_SIZE;
-		
-		float frontDepth = tex2D(_FrontDepthTex, i.uv[1]).r;
-		float backDepth = tex2D(_BackDepthTex, i.uv[1]).r;
-		
+
 		float3 normalValues;
 		float depthValue;
 		DecodeDepthNormal(tex2D(_CameraDepthNormalsTexture, i.uv[1]), depthValue, normalValues);
-			
+		depthValue *= _ProjectionParams.z;
+
 		for(int k = 0; k < STEP_CNT; k++)
 		{
 			float4 src = tex3D(_VolumeTex, pos);
-			
+
+			float4 viewPos = mul(_ObjectToView, float4(pos - 0.5, 1));
+			src.a *= step(-viewPos.z, depthValue);
+
 			// clipping
 			float border = step(1 - _ClipDims.x, pos.x);
 			border *= step(pos.y, _ClipDims.y);
@@ -87,8 +97,7 @@ Shader "Hidden/Ray Marching/Ray Marching"
 			pos += stepDist;
 		}
 		
-
-    	return (dst + dst) * saturate((depthValue - frontDepth) * _FadeAmount);
+		return dst;
 	}
 
 	ENDCG
